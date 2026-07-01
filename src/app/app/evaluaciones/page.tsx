@@ -178,58 +178,61 @@ export default async function EvaluacionesPage({
   const latestAttempts = [...attemptRows].slice(0, 10);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">
-          Evaluaciones - Personal
-        </h1>
-        <p className="mt-2 text-slate-600">
-          CRUD inicial de colaboradores para el modulo de evaluaciones.
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-6 sm:py-10">
+      <header className="card-surface rise-in mb-8 rounded-3xl border p-6 shadow-sm sm:p-7">
+        <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-500">
+          Modulo
         </p>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="mt-2 text-3xl font-extrabold uppercase tracking-tight text-slate-900 sm:text-4xl">
+          Evaluaciones
+        </h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-700">
+          Gestion de colaboradores, intentos, metricas y reportes operativos de conocimiento.
+        </p>
+        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
           Sesion: {profile.full_name} ({profile.role})
         </p>
       </header>
 
       {searchParams?.error ? (
-        <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+        <p className="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
           {searchParams.error}
         </p>
       ) : null}
 
       {searchParams?.message ? (
-        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">
+        <p className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">
           {searchParams.message}
         </p>
       ) : null}
 
       {profile.role === "manager" && profile.business_unit_ids.length === 0 ? (
-        <p className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+        <p className="mb-4 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-sm font-medium text-amber-900">
           Tu usuario manager aun no tiene unidades asignadas en profiles.business_unit_ids.
         </p>
       ) : null}
 
       <section className="mb-8 grid gap-3 md:grid-cols-4">
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Activos</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{activeEmployeesCount ?? 0}</p>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Inactivos</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{inactiveEmployeesCount ?? 0}</p>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Intentos registrados</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{attemptsCount}</p>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Pendientes de evaluar</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">{pendingEvaluations}</p>
         </article>
       </section>
 
       <section className="mb-8 grid gap-4 md:grid-cols-2">
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Reportes rapidos</h2>
           <div className="mt-4 space-y-2 text-sm text-slate-700">
             <p>Por colaborador: {distinctAttemptEmployees} con historial de intentos.</p>
@@ -247,7 +250,7 @@ export default async function EvaluacionesPage({
           </div>
         </article>
 
-        <article className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
           <h2 className="text-lg font-semibold text-slate-900">Escala de propinas</h2>
           <div className="mt-4 overflow-x-auto">
             <table className="w-full min-w-[420px] border-collapse text-left text-sm">
@@ -280,7 +283,7 @@ export default async function EvaluacionesPage({
         </article>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Registro manual de resultado</h2>
           <p className="text-xs text-slate-500">Para correcciones operativas o carga controlada.</p>
@@ -342,7 +345,7 @@ export default async function EvaluacionesPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Reportes (4 vistas)</h2>
           <PrintReportsButton />
@@ -389,7 +392,7 @@ export default async function EvaluacionesPage({
         </div>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Ranking de desempeno</h2>
         <p className="mt-1 text-sm text-slate-600">Top 5 colaboradores por promedio de aciertos.</p>
         <div className="mt-4 overflow-x-auto">
@@ -422,7 +425,7 @@ export default async function EvaluacionesPage({
         </div>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Nuevo colaborador</h2>
 
         <form action={createEmployee} className="mt-4 grid gap-4 md:grid-cols-2">
@@ -538,7 +541,7 @@ export default async function EvaluacionesPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Historial de intentos</h2>
           <p className="text-sm text-slate-500">{attemptRows.length} registros filtrados</p>
@@ -778,7 +781,7 @@ export default async function EvaluacionesPage({
         </section>
       ) : null}
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Generador de prueba</h2>
         <form className="mt-4 grid gap-4 md:grid-cols-2" action="/app/evaluaciones" method="get">
           <div>
@@ -890,7 +893,7 @@ export default async function EvaluacionesPage({
         </form>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold text-slate-900">Listado de personal</h2>
           <p className="text-sm text-slate-500">{(employees ?? []).length} registros</p>

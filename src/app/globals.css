@@ -4,8 +4,41 @@
 
 :root {
   color-scheme: light;
+  --font-ui: var(--font-manrope), "Segoe UI", "Helvetica Neue", sans-serif;
+  --bg-base: #f3f0e8;
+  --bg-spot-1: #e8f1dd;
+  --bg-spot-2: #f8e7d3;
+  --ink: #1c1c1b;
+  --card: #fffdf8;
+  --stroke: #d8d3c6;
 }
 
 body {
-  @apply min-h-screen bg-slate-50 text-slate-900 antialiased;
+  @apply min-h-screen antialiased;
+  font-family: var(--font-ui);
+  color: var(--ink);
+  background:
+    radial-gradient(circle at 18% 12%, var(--bg-spot-1) 0%, transparent 42%),
+    radial-gradient(circle at 85% 8%, var(--bg-spot-2) 0%, transparent 38%),
+    var(--bg-base);
+}
+
+.card-surface {
+  background: var(--card);
+  border-color: var(--stroke);
+}
+
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.rise-in {
+  animation: rise-in 480ms ease-out both;
 }

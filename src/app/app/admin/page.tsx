@@ -88,21 +88,22 @@ export default async function AdminPage({
   const today = new Date().toISOString().slice(0, 10);
 
   return (
-    <main className="mx-auto flex min-h-screen w-full max-w-6xl flex-col px-6 py-10">
-      <header className="mb-8">
-        <h1 className="text-3xl font-bold tracking-tight text-slate-900">Modulo Admin</h1>
-        <p className="mt-2 text-slate-600">Propina, caja menuda y eventuales con formularios, tablas, filtros y totales.</p>
+    <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-6 sm:py-10">
+      <header className="card-surface rise-in mb-8 rounded-3xl border p-6 shadow-sm sm:p-7">
+        <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-500">Modulo</p>
+        <h1 className="mt-2 text-3xl font-extrabold uppercase tracking-tight text-slate-900 sm:text-4xl">Admin</h1>
+        <p className="mt-2 max-w-3xl text-sm text-slate-700">Propina, caja menuda y eventuales con formularios, tablas, filtros y totales.</p>
       </header>
 
       {searchParams?.error ? (
-        <p className="mb-4 rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">{searchParams.error}</p>
+        <p className="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{searchParams.error}</p>
       ) : null}
 
       {searchParams?.message ? (
-        <p className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-700">{searchParams.message}</p>
+        <p className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{searchParams.message}</p>
       ) : null}
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Filtros globales</h2>
         <form className="mt-4 grid gap-3 md:grid-cols-4" action="/app/admin" method="get">
           <select name="bu" defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -118,21 +119,21 @@ export default async function AdminPage({
       </section>
 
       <section className="mb-8 grid gap-3 md:grid-cols-3">
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Total propina</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">${tipTotal.toFixed(2)}</p>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Total caja menuda</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">${pettyTotal.toFixed(2)}</p>
         </article>
-        <article className="rounded-xl border border-slate-200 bg-white p-4 shadow-sm">
+        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
           <p className="text-xs uppercase tracking-wide text-slate-500">Total eventuales</p>
           <p className="mt-1 text-2xl font-bold text-slate-900">${tempStaffTotal.toFixed(2)}</p>
         </article>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Registrar propina</h2>
         <form action={createTipRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <select name="employeeId" required className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -161,7 +162,7 @@ export default async function AdminPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Registrar caja menuda</h2>
         <form action={createPettyCashRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <select name="businessUnitId" required defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -181,7 +182,7 @@ export default async function AdminPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Registrar eventual</h2>
         <form action={createTempStaffRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <input name="fullName" required placeholder="Nombre completo" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
@@ -209,7 +210,7 @@ export default async function AdminPage({
         </form>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Tabla de propinas</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
@@ -237,7 +238,7 @@ export default async function AdminPage({
         </div>
       </section>
 
-      <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Tabla de caja menuda</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
@@ -265,7 +266,7 @@ export default async function AdminPage({
         </div>
       </section>
 
-      <section className="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+      <section className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
         <h2 className="text-lg font-semibold text-slate-900">Tabla de eventuales</h2>
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
