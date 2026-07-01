@@ -22,10 +22,10 @@ export async function middleware(request: NextRequest) {
         getAll() {
           return request.cookies.getAll();
         },
-        setAll(cookiesToSet) {
+        setAll(cookiesToSet: Array<{ name: string; value: string; options?: Record<string, unknown> }>) {
           cookiesToSet.forEach(({ name, value, options }) => {
             request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
+            response.cookies.set(name, value, options as never);
           });
         },
       },
@@ -36,7 +36,7 @@ export async function middleware(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const isAuthPage = pathname.startsWith("/auth/login");
+  const isAuthPage = pathname.startsWith("/auth");
   const isProtected = pathname.startsWith("/app");
 
   if (!user && isProtected) {
