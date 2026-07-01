@@ -148,6 +148,25 @@ export default async function AppHomePage({
         </p>
       ) : null}
 
+      <section className="mb-8 rounded-[1.5rem] border border-black/10 bg-[#b97735] px-5 py-4 text-white shadow-sm">
+        <p className="text-[11px] font-bold uppercase tracking-[0.22em] text-white/80">
+          Verificacion visual
+        </p>
+        <div className="mt-2 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="text-2xl font-extrabold uppercase tracking-tight">
+              Dashboard Editorial Activo
+            </h2>
+            <p className="text-sm text-white/90">
+              Si ves esta franja cobre, ya estas en la version nueva del portal.
+            </p>
+          </div>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-white/80">
+            Release 138dd63+
+          </p>
+        </div>
+      </section>
+
       <section className="mb-8">
         <div className="mb-4 flex items-end justify-between gap-4">
           <div>
