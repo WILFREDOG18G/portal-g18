@@ -99,6 +99,29 @@ function parseCsvLine(line: string) {
   return values;
 }
 
+function isExcelFile(file: File) {
+  const lowerName = file.name.toLowerCase();
+  return lowerName.endsWith(".xlsx") || lowerName.endsWith(".xls");
+}
+
+async function fileToImportText(file: File) {
+  if (isExcelFile(file)) {
+    const XLSX = await import("xlsx");
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const firstSheetName = workbook.SheetNames[0];
+
+    if (!firstSheetName) {
+      return "";
+    }
+
+    const firstSheet = workbook.Sheets[firstSheetName];
+    return XLSX.utils.sheet_to_csv(firstSheet, { blankrows: false });
+  }
+
+  return file.text();
+}
+
 function toCanonicalStatus(value: string) {
   const normalized = value.trim().toLowerCase();
   if (normalized === "activo" || normalized === "active") return "activo";
@@ -234,31 +257,31 @@ export default function EmployeeCsvImporter({
   return (
     <div className="space-y-4">
       <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-xs text-slate-600">
-        <p className="font-semibold text-slate-700">Formato esperado (CSV)</p>
+        <p className="font-semibold text-slate-700">Formato esperado (Excel)</p>
         <p className="mt-1">Columnas requeridas: full_name, business_unit_name, position, contract_type, status</p>
         <p>Columnas opcionales: area_name, identification_number, salary</p>
         <a
-          href="/templates/empleados_import_template.csv"
+          href="/templates/empleados_import_template.xlsx"
           download
           className="mt-2 inline-block text-xs font-semibold text-slate-700 underline hover:text-slate-900"
         >
-          Descargar plantilla CSV
+          Descargar plantilla Excel
         </a>
       </div>
 
       <div>
         <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="employeeCsvFile">
-          Cargar archivo CSV
+          Cargar archivo Excel
         </label>
         <input
           id="employeeCsvFile"
           type="file"
-          accept=".csv,text/csv"
+          accept=".xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
           className="block w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
           onChange={async (event) => {
             const file = event.target.files?.[0];
             if (!file) return;
-            const text = await file.text();
+            const text = await fileToImportText(file);
             setCsvText(text);
           }}
         />
