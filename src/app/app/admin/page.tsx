@@ -1,9 +1,14 @@
 import { requireModuleAccess } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import FilterBar from "@/components/ui/FilterBar";
+import ModuleHeader from "@/components/ui/ModuleHeader";
+import SectionCard from "@/components/ui/SectionCard";
+import EmployeeCsvImporter from "./EmployeeCsvImporter";
 import {
   createPettyCashRecord,
   createTempStaffRecord,
   createTipRecord,
+  importEmployeesCsv,
 } from "./actions";
 
 export default async function AdminPage({
@@ -12,6 +17,7 @@ export default async function AdminPage({
   searchParams?: {
     error?: string;
     message?: string;
+    importReport?: string;
     bu?: string;
     from?: string;
     to?: string;
@@ -87,13 +93,39 @@ export default async function AdminPage({
 
   const today = new Date().toISOString().slice(0, 10);
 
+  let importReport: {
+    totalRows: number;
+    created: number;
+    updated: number;
+    skipped: number;
+    errors: string[];
+  } | null = null;
+
+  if (searchParams?.importReport) {
+    try {
+      const decoded = Buffer.from(searchParams.importReport, "base64url").toString("utf8");
+      const parsed = JSON.parse(decoded);
+      if (
+        parsed &&
+        typeof parsed.totalRows === "number" &&
+        typeof parsed.created === "number" &&
+        typeof parsed.updated === "number" &&
+        typeof parsed.skipped === "number" &&
+        Array.isArray(parsed.errors)
+      ) {
+        importReport = parsed;
+      }
+    } catch {
+      importReport = null;
+    }
+  }
+
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-6 sm:py-10">
-      <header className="card-surface rise-in mb-8 rounded-3xl border p-6 shadow-sm sm:p-7">
-        <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-500">Modulo</p>
-        <h1 className="mt-2 text-3xl font-extrabold uppercase tracking-tight text-slate-900 sm:text-4xl">Admin</h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-700">Propina, caja menuda y eventuales con formularios, tablas, filtros y totales.</p>
-      </header>
+      <ModuleHeader
+        title="Admin"
+        description="Propina, caja menuda y eventuales con formularios, tablas, filtros y totales."
+      />
 
       {searchParams?.error ? (
         <p className="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">{searchParams.error}</p>
@@ -103,9 +135,8 @@ export default async function AdminPage({
         <p className="mb-4 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-sm font-medium text-emerald-700">{searchParams.message}</p>
       ) : null}
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Filtros globales</h2>
-        <form className="mt-4 grid gap-3 md:grid-cols-4" action="/app/admin" method="get">
+      <SectionCard title="Filtros globales" className="mb-8">
+        <FilterBar action="/app/admin">
           <select name="bu" defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="">Todas las unidades</option>
             {(businessUnits ?? []).map((unit) => (
@@ -115,8 +146,34 @@ export default async function AdminPage({
           <input name="from" type="date" defaultValue={selectedFrom} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <input name="to" type="date" defaultValue={selectedTo} className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <button type="submit" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Aplicar</button>
-        </form>
-      </section>
+        </FilterBar>
+      </SectionCard>
+
+      <SectionCard title="Importador de personal por CSV" className="mb-8">
+        <EmployeeCsvImporter
+          businessUnits={businessUnits ?? []}
+          areas={areas ?? []}
+          action={importEmployeesCsv}
+        />
+
+        {importReport ? (
+          <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-sm font-semibold text-slate-900">Resultado de importacion</p>
+            <p className="mt-1 text-xs text-slate-600">
+              Total filas: {importReport.totalRows} | Creados: {importReport.created} | Actualizados: {importReport.updated} | Omitidos: {importReport.skipped}
+            </p>
+            {importReport.errors.length > 0 ? (
+              <ul className="mt-2 list-inside list-disc space-y-1 text-xs text-rose-700">
+                {importReport.errors.map((error) => (
+                  <li key={error}>{error}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-emerald-700">Sin errores por fila.</p>
+            )}
+          </div>
+        ) : null}
+      </SectionCard>
 
       <section className="mb-8 grid gap-3 md:grid-cols-3">
         <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
@@ -133,8 +190,7 @@ export default async function AdminPage({
         </article>
       </section>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Registrar propina</h2>
+      <SectionCard title="Registrar propina" className="mb-8">
         <form action={createTipRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <select name="employeeId" required className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="">Colaborador activo</option>
@@ -160,10 +216,9 @@ export default async function AdminPage({
             <button type="submit" className="rounded-lg bg-emerald-700 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-800">Guardar propina</button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Registrar caja menuda</h2>
+      <SectionCard title="Registrar caja menuda" className="mb-8">
         <form action={createPettyCashRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <select name="businessUnitId" required defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="">Unidad de negocio</option>
@@ -180,10 +235,9 @@ export default async function AdminPage({
             <button type="submit" className="rounded-lg bg-slate-900 px-4 py-2 text-sm font-semibold text-white hover:bg-slate-800">Guardar caja menuda</button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Registrar eventual</h2>
+      <SectionCard title="Registrar eventual" className="mb-8">
         <form action={createTempStaffRecord} className="mt-4 grid gap-4 md:grid-cols-2">
           <input name="fullName" required placeholder="Nombre completo" className="rounded-lg border border-slate-300 px-3 py-2 text-sm" />
           <select name="businessUnitId" required defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
@@ -208,10 +262,9 @@ export default async function AdminPage({
             <button type="submit" className="rounded-lg bg-amber-700 px-4 py-2 text-sm font-semibold text-white hover:bg-amber-800">Guardar eventual</button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Tabla de propinas</h2>
+      <SectionCard title="Tabla de propinas" className="mb-8">
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
             <thead>
@@ -236,10 +289,9 @@ export default async function AdminPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Tabla de caja menuda</h2>
+      <SectionCard title="Tabla de caja menuda" className="mb-8">
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
             <thead>
@@ -264,10 +316,9 @@ export default async function AdminPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Tabla de eventuales</h2>
+      <SectionCard title="Tabla de eventuales">
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[900px] border-collapse text-left text-sm">
             <thead>
@@ -296,7 +347,7 @@ export default async function AdminPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
     </main>
   );
 }

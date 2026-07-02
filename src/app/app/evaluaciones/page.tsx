@@ -1,8 +1,13 @@
 import { requireModuleAccess } from "@/lib/auth/guards";
 import { createClient } from "@/lib/supabase/server";
+import FilterBar from "@/components/ui/FilterBar";
+import ModuleHeader from "@/components/ui/ModuleHeader";
+import SectionCard from "@/components/ui/SectionCard";
 import Link from "next/link";
 import ConfirmStatusButton from "./ConfirmStatusButton";
+import MetricsGrid from "./components/MetricsGrid";
 import PrintReportsButton from "./PrintReportsButton";
+import ReportsOverview from "./components/ReportsOverview";
 import {
   createManualQuizAttempt,
   createEmployee,
@@ -176,23 +181,19 @@ export default async function EvaluacionesPage({
   );
 
   const latestAttempts = [...attemptRows].slice(0, 10);
+  const unitAttempts = (businessUnits ?? []).map((unit) => ({
+    id: unit.id,
+    name: unit.name,
+    attempts: unitAttemptCount.get(unit.id) ?? 0,
+  }));
 
   return (
     <main className="mx-auto flex min-h-screen w-full max-w-7xl flex-col px-5 py-8 sm:px-6 sm:py-10">
-      <header className="card-surface rise-in mb-8 rounded-3xl border p-6 shadow-sm sm:p-7">
-        <p className="text-xs font-extrabold uppercase tracking-[0.22em] text-slate-500">
-          Modulo
-        </p>
-        <h1 className="mt-2 text-3xl font-extrabold uppercase tracking-tight text-slate-900 sm:text-4xl">
-          Evaluaciones
-        </h1>
-        <p className="mt-2 max-w-3xl text-sm text-slate-700">
-          Gestion de colaboradores, intentos, metricas y reportes operativos de conocimiento.
-        </p>
-        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">
-          Sesion: {profile.full_name} ({profile.role})
-        </p>
-      </header>
+      <ModuleHeader
+        title="Evaluaciones"
+        description="Gestion de colaboradores, intentos, metricas y reportes operativos de conocimiento."
+        meta={`Sesion: ${profile.full_name} (${profile.role})`}
+      />
 
       {searchParams?.error ? (
         <p className="mb-4 rounded-xl border border-rose-300 bg-rose-50 px-3 py-2 text-sm font-medium text-rose-700">
@@ -212,83 +213,26 @@ export default async function EvaluacionesPage({
         </p>
       ) : null}
 
-      <section className="mb-8 grid gap-3 md:grid-cols-4">
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Activos</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{activeEmployeesCount ?? 0}</p>
-        </article>
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Inactivos</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{inactiveEmployeesCount ?? 0}</p>
-        </article>
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Intentos registrados</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{attemptsCount}</p>
-        </article>
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Pendientes de evaluar</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{pendingEvaluations}</p>
-        </article>
-      </section>
+      <MetricsGrid
+        activeEmployeesCount={activeEmployeesCount ?? 0}
+        inactiveEmployeesCount={inactiveEmployeesCount ?? 0}
+        attemptsCount={attemptsCount}
+        pendingEvaluations={pendingEvaluations}
+      />
 
-      <section className="mb-8 grid gap-4 md:grid-cols-2">
-        <article className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Reportes rapidos</h2>
-          <div className="mt-4 space-y-2 text-sm text-slate-700">
-            <p>Por colaborador: {distinctAttemptEmployees} con historial de intentos.</p>
-            <p>Historial total: {attemptsCount} intentos acumulados.</p>
-            <p>Pendientes de evaluar: {pendingEvaluations} colaboradores activos sin intento.</p>
-            <p>Promedio global: {averageScorePct.toFixed(1)}% de respuestas correctas.</p>
-          </div>
-          <div className="mt-4 rounded-lg border border-slate-200 bg-slate-50 p-3 text-xs text-slate-600">
-            <p className="font-semibold text-slate-700">Por unidad</p>
-            {(businessUnits ?? []).map((unit) => (
-              <p key={unit.id}>
-                {unit.name}: {unitAttemptCount.get(unit.id) ?? 0} intentos
-              </p>
-            ))}
-          </div>
-        </article>
+      <ReportsOverview
+        distinctAttemptEmployees={distinctAttemptEmployees}
+        attemptsCount={attemptsCount}
+        pendingEvaluations={pendingEvaluations}
+        averageScorePct={averageScorePct}
+        unitAttempts={unitAttempts}
+      />
 
-        <article className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
-          <h2 className="text-lg font-semibold text-slate-900">Escala de propinas</h2>
-          <div className="mt-4 overflow-x-auto">
-            <table className="w-full min-w-[420px] border-collapse text-left text-sm">
-              <thead>
-                <tr className="border-b border-slate-200 text-slate-600">
-                  <th className="px-2 py-2 font-medium">% correctas</th>
-                  <th className="px-2 py-2 font-medium">% propina aprobada</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="px-2 py-2">1% - 49%</td>
-                  <td className="px-2 py-2">0%</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="px-2 py-2">50% - 59%</td>
-                  <td className="px-2 py-2">50%</td>
-                </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="px-2 py-2">60% - 79%</td>
-                  <td className="px-2 py-2">75%</td>
-                </tr>
-                <tr>
-                  <td className="px-2 py-2">80% - 100%</td>
-                  <td className="px-2 py-2">100%</td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
-        </article>
-      </section>
-
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Registro manual de resultado</h2>
-          <p className="text-xs text-slate-500">Para correcciones operativas o carga controlada.</p>
-        </div>
-
+      <SectionCard
+        title="Registro manual de resultado"
+        description="Para correcciones operativas o carga controlada."
+        className="mb-8"
+      >
         <form action={createManualQuizAttempt} className="grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="manualEmployeeId">
@@ -343,13 +287,9 @@ export default async function EvaluacionesPage({
             </button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Reportes (4 vistas)</h2>
-          <PrintReportsButton />
-        </div>
+      <SectionCard title="Reportes (4 vistas)" actions={<PrintReportsButton />} className="mb-8">
 
         <div className="grid gap-4 md:grid-cols-2">
           <article className="rounded-lg border border-slate-200 p-4">
@@ -390,11 +330,9 @@ export default async function EvaluacionesPage({
             </ul>
           </article>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Ranking de desempeno</h2>
-        <p className="mt-1 text-sm text-slate-600">Top 5 colaboradores por promedio de aciertos.</p>
+      <SectionCard title="Ranking de desempeno" description="Top 5 colaboradores por promedio de aciertos." className="mb-8">
         <div className="mt-4 overflow-x-auto">
           <table className="w-full min-w-[520px] border-collapse text-left text-sm">
             <thead>
@@ -423,11 +361,9 @@ export default async function EvaluacionesPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Nuevo colaborador</h2>
-
+      <SectionCard title="Nuevo colaborador" className="mb-8">
         <form action={createEmployee} className="mt-4 grid gap-4 md:grid-cols-2">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="fullName">
@@ -539,15 +475,14 @@ export default async function EvaluacionesPage({
             </button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Historial de intentos</h2>
-          <p className="text-sm text-slate-500">{attemptRows.length} registros filtrados</p>
-        </div>
-
-        <form className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-4" action="/app/evaluaciones" method="get">
+      <SectionCard
+        title="Historial de intentos"
+        actions={<p className="text-sm text-slate-500">{attemptRows.length} registros filtrados</p>}
+        className="mb-8"
+      >
+        <FilterBar action="/app/evaluaciones" className="md:grid-cols-4">
           <select name="aBu" defaultValue={selectedAttemptBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="">Todas las unidades</option>
             {(businessUnits ?? []).map((unit) => (
@@ -577,7 +512,7 @@ export default async function EvaluacionesPage({
               Limpiar
             </Link>
           </div>
-        </form>
+        </FilterBar>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[980px] border-collapse text-left text-sm">
@@ -645,20 +580,21 @@ export default async function EvaluacionesPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
 
       {editableEmployee ? (
-        <section className="mb-8 rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-lg font-semibold text-slate-900">Editar colaborador</h2>
+        <SectionCard
+          title="Editar colaborador"
+          actions={
             <Link
               href={filterBase ? `/app/evaluaciones?${filterBase}` : "/app/evaluaciones"}
               className="text-sm text-slate-500 hover:text-slate-700"
             >
               Cancelar
             </Link>
-          </div>
-
+          }
+          className="mb-8"
+        >
           <form action={updateEmployee} className="grid gap-4 md:grid-cols-2">
             <input type="hidden" name="employeeId" value={editableEmployee.id} />
 
@@ -778,11 +714,10 @@ export default async function EvaluacionesPage({
               </button>
             </div>
           </form>
-        </section>
+        </SectionCard>
       ) : null}
 
-      <section className="card-surface rise-in mb-8 rounded-2xl border p-5 shadow-sm">
-        <h2 className="text-lg font-semibold text-slate-900">Generador de prueba</h2>
+      <SectionCard title="Generador de prueba" className="mb-8">
         <form className="mt-4 grid gap-4 md:grid-cols-2" action="/app/evaluaciones" method="get">
           <div>
             <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="qBu">
@@ -891,15 +826,13 @@ export default async function EvaluacionesPage({
             </button>
           </div>
         </form>
-      </section>
+      </SectionCard>
 
-      <section className="card-surface rise-in rounded-2xl border p-5 shadow-sm">
-        <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">Listado de personal</h2>
-          <p className="text-sm text-slate-500">{(employees ?? []).length} registros</p>
-        </div>
-
-        <form className="mb-4 grid gap-3 rounded-lg border border-slate-200 bg-slate-50 p-3 md:grid-cols-4" action="/app/evaluaciones" method="get">
+      <SectionCard
+        title="Listado de personal"
+        actions={<p className="text-sm text-slate-500">{(employees ?? []).length} registros</p>}
+      >
+        <FilterBar action="/app/evaluaciones" className="md:grid-cols-4">
           <select name="bu" defaultValue={selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="">Todas las unidades</option>
             {(businessUnits ?? []).map((unit) => (
@@ -928,7 +861,7 @@ export default async function EvaluacionesPage({
               Limpiar
             </Link>
           </div>
-        </form>
+        </FilterBar>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[760px] border-collapse text-left text-sm">
@@ -994,7 +927,7 @@ export default async function EvaluacionesPage({
             </tbody>
           </table>
         </div>
-      </section>
+      </SectionCard>
     </main>
   );
 }

@@ -12,6 +12,73 @@ function parsePositiveAmount(rawValue: string, fieldName: string) {
   return amount;
 }
 
+async function validateAreaBelongsToBusinessUnit(
+  supabase: ReturnType<typeof createClient>,
+  areaId: string,
+  businessUnitId: string
+) {
+  if (!areaId) return;
+
+  const { data: area, error } = await supabase
+    .from("areas")
+    .select("id,business_unit_id")
+    .eq("id", areaId)
+    .maybeSingle();
+
+  if (error || !area) {
+    redirect("/app/rrhh?error=El+area+seleccionada+no+es+valida");
+  }
+
+  if (area.business_unit_id !== businessUnitId) {
+    redirect("/app/rrhh?error=El+area+no+pertenece+a+la+unidad+seleccionada");
+  }
+}
+
+export async function createEmployeeRecord(formData: FormData) {
+  const supabase = createClient();
+
+  const fullName = String(formData.get("fullName") ?? "").trim();
+  const businessUnitId = String(formData.get("businessUnitId") ?? "").trim();
+  const areaIdRaw = String(formData.get("areaId") ?? "").trim();
+  const position = String(formData.get("position") ?? "").trim();
+  const contractType = String(formData.get("contractType") ?? "").trim();
+  const identificationNumber = String(formData.get("identificationNumber") ?? "").trim();
+  const salaryRaw = String(formData.get("salary") ?? "").trim();
+
+  if (!fullName || !businessUnitId || !position || !contractType) {
+    redirect("/app/rrhh?error=Completa+los+campos+obligatorios+de+personal");
+  }
+
+  const salary = salaryRaw ? Number(salaryRaw) : null;
+  if (salaryRaw && Number.isNaN(salary)) {
+    redirect("/app/rrhh?error=Salario+invalido");
+  }
+
+  if (contractType !== "SIPE" && contractType !== "SP") {
+    redirect("/app/rrhh?error=Tipo+de+contrato+invalido");
+  }
+
+  await validateAreaBelongsToBusinessUnit(supabase, areaIdRaw, businessUnitId);
+
+  const { error } = await supabase.from("employees").insert({
+    full_name: fullName,
+    business_unit_id: businessUnitId,
+    area_id: areaIdRaw || null,
+    position,
+    status: "activo",
+    contract_type: contractType,
+    identification_number: identificationNumber || null,
+    salary,
+  });
+
+  if (error) {
+    redirect(`/app/rrhh?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/app/rrhh");
+  redirect("/app/rrhh?message=Colaborador+registrado+en+RRHH");
+}
+
 export async function createPayrollIncident(formData: FormData) {
   const supabase = createClient();
 
@@ -183,4 +250,49 @@ export async function createMemo(formData: FormData) {
 
   revalidatePath("/app/rrhh");
   redirect("/app/rrhh?message=Memo+registrado");
+}
+
+export async function createVacationRequest(formData: FormData) {
+  const supabase = createClient();
+
+  const employeeId = String(formData.get("employeeId") ?? "").trim();
+  const businessUnitId = String(formData.get("businessUnitId") ?? "").trim();
+  const startDate = String(formData.get("startDate") ?? "").trim();
+  const endDate = String(formData.get("endDate") ?? "").trim();
+  const totalDaysRaw = String(formData.get("totalDays") ?? "").trim();
+  const reason = String(formData.get("reason") ?? "").trim();
+
+  if (!employeeId || !businessUnitId || !startDate || !endDate) {
+    redirect("/app/rrhh?error=Completa+los+campos+obligatorios+de+vacaciones");
+  }
+
+  const start = new Date(`${startDate}T00:00:00`);
+  const end = new Date(`${endDate}T00:00:00`);
+  if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end < start) {
+    redirect("/app/rrhh?error=Rango+de+fechas+invalido+para+vacaciones");
+  }
+
+  const diffMs = end.getTime() - start.getTime();
+  const computedDays = Math.floor(diffMs / (1000 * 60 * 60 * 24)) + 1;
+  const totalDays = totalDaysRaw ? Number(totalDaysRaw) : computedDays;
+  if (Number.isNaN(totalDays) || totalDays <= 0) {
+    redirect("/app/rrhh?error=Total+de+dias+invalido+para+vacaciones");
+  }
+
+  const { error } = await supabase.from("vacation_requests").insert({
+    employee_id: employeeId,
+    business_unit_id: businessUnitId,
+    start_date: startDate,
+    end_date: endDate,
+    total_days: totalDays,
+    reason: reason || null,
+    status: "pendiente",
+  });
+
+  if (error) {
+    redirect(`/app/rrhh?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath("/app/rrhh");
+  redirect("/app/rrhh?message=Solicitud+de+vacaciones+registrada");
 }

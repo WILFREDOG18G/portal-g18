@@ -65,6 +65,44 @@ where id = '<AUTH_USER_ID>';
   - `admin` / `rrhh`: acceso total.
   - `manager`: acceso solo a unidades de `profiles.business_unit_ids`.
 
+## 8) Estructura recomendada del proyecto
+
+- `src/app/app/<modulo>/page.tsx`: pantalla principal del modulo.
+- `src/app/app/<modulo>/actions.ts`: server actions del modulo.
+- `src/app/app/<modulo>/*`: componentes locales solo si pertenecen a ese modulo.
+- `src/components/ui/*`: primitivas compartidas de interfaz.
+- `src/lib/auth/*`: roles, guards y bootstrap de perfil.
+- `src/lib/supabase/*`: clientes y variables de Supabase.
+- `src/lib/pdf/*`: generacion de PDFs reutilizable.
+- `supabase/migrations/*`: esquema y cambios de base de datos versionados.
+
+## 9) Patron de modulo
+
+Cada modulo nuevo debe seguir este patron minimo:
+
+1. `page.tsx` para componer la vista.
+2. `actions.ts` para mutaciones y validacion del lado servidor.
+3. componentes locales solo si no son reutilizables.
+4. si una pieza visual se repite entre modulos, moverla a `src/components/ui`.
+
+## 10) Flujo de trabajo recomendado
+
+1. Implementar el cambio en una superficie pequena y clara.
+2. Ejecutar `npm run test`.
+3. Si el cambio toca render, rutas o build output, ejecutar `npm run build`.
+4. Confirmar que no hay errores en el workspace.
+5. Hacer commit con mensaje concreto.
+6. Hacer push a `main`.
+7. Validar el deployment en Vercel.
+
+## 11) Componentes UI compartidos actuales
+
+- `src/components/ui/ModuleHeader.tsx`
+- `src/components/ui/SectionCard.tsx`
+- `src/components/ui/FilterBar.tsx`
+
+Admin ya fue refactorizado para servir como patron inicial de estructura.
+
 ## Notas de modelado
 
 - Se agrega tabla `incident_types` para permitir catalogo editable de incidencias.

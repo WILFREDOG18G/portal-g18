@@ -13,6 +13,366 @@ function parseAmount(value: string, fieldName: string) {
   return amount;
 }
 
+type ParsedImportRow = {
+  rowNumber: number;
+  fullName: string;
+  businessUnitName: string;
+  areaName: string;
+  position: string;
+  contractType: string;
+  status: string;
+  identificationNumber: string;
+  salaryRaw: string;
+};
+
+const REQUIRED_IMPORT_HEADERS = [
+  "full_name",
+  "business_unit_name",
+  "position",
+  "contract_type",
+  "status",
+] as const;
+
+const IMPORT_HEADER_ALIASES: Record<string, string> = {
+  nombre: "full_name",
+  nombre_completo: "full_name",
+  full_name: "full_name",
+  unidad: "business_unit_name",
+  unidad_negocio: "business_unit_name",
+  business_unit: "business_unit_name",
+  business_unit_name: "business_unit_name",
+  area: "area_name",
+  area_name: "area_name",
+  cargo: "position",
+  position: "position",
+  estado: "status",
+  status: "status",
+  tipo_contrato: "contract_type",
+  contract_type: "contract_type",
+  documento: "identification_number",
+  identification_number: "identification_number",
+  salario: "salary",
+  salary: "salary",
+};
+
+function normalizeHeader(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/\s+/g, "_");
+}
+
+function parseCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let inQuotes = false;
+
+  for (let index = 0; index < line.length; index += 1) {
+    const char = line[index];
+
+    if (char === '"') {
+      const nextChar = line[index + 1];
+      if (inQuotes && nextChar === '"') {
+        current += '"';
+        index += 1;
+      } else {
+        inQuotes = !inQuotes;
+      }
+      continue;
+    }
+
+    if (char === "," && !inQuotes) {
+      values.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += char;
+  }
+
+  values.push(current.trim());
+  return values;
+}
+
+function normalizeStatus(value: string) {
+  const normalized = value.trim().toLowerCase();
+  if (normalized === "activo" || normalized === "active") return "activo";
+  if (normalized === "inactivo" || normalized === "inactive") return "inactivo";
+  return value.trim();
+}
+
+function normalizeContract(value: string) {
+  const normalized = value.trim().toUpperCase();
+  if (normalized === "SIPE" || normalized === "SP") return normalized;
+  return value.trim();
+}
+
+function normalizeIdentity(value: string) {
+  return value.trim().toLowerCase();
+}
+
+function normalizeNameKey(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "");
+}
+
+function parseEmployeesCsv(csvText: string) {
+  const lines = csvText
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0);
+
+  if (lines.length === 0) {
+    return { rows: [] as ParsedImportRow[], missingHeaders: [...REQUIRED_IMPORT_HEADERS] as string[] };
+  }
+
+  const rawHeaders = parseCsvLine(lines[0]);
+  const canonicalHeaders = rawHeaders.map(
+    (header) => IMPORT_HEADER_ALIASES[normalizeHeader(header)] ?? normalizeHeader(header)
+  );
+  const headerIndex = new Map(canonicalHeaders.map((header, index) => [header, index]));
+  const missingHeaders = REQUIRED_IMPORT_HEADERS.filter((header) => !headerIndex.has(header));
+
+  const rows: ParsedImportRow[] = [];
+
+  for (let lineIndex = 1; lineIndex < lines.length; lineIndex += 1) {
+    const values = parseCsvLine(lines[lineIndex]);
+    const getValue = (header: string) => {
+      const index = headerIndex.get(header);
+      if (index === undefined) return "";
+      return String(values[index] ?? "").trim();
+    };
+
+    rows.push({
+      rowNumber: lineIndex + 1,
+      fullName: getValue("full_name"),
+      businessUnitName: getValue("business_unit_name"),
+      areaName: getValue("area_name"),
+      position: getValue("position"),
+      contractType: normalizeContract(getValue("contract_type")),
+      status: normalizeStatus(getValue("status")),
+      identificationNumber: getValue("identification_number"),
+      salaryRaw: getValue("salary"),
+    });
+  }
+
+  return { rows, missingHeaders };
+}
+
+export async function importEmployeesCsv(formData: FormData) {
+  const returnToRaw = String(formData.get("returnTo") ?? "").trim();
+  const returnTo = returnToRaw.startsWith("/app/") ? returnToRaw : "/app/admin";
+  const returnBasePath = returnTo.split("?")[0] || "/app/admin";
+  const errorRedirect = (message: string) => {
+    const separator = returnTo.includes("?") ? "&" : "?";
+    redirect(`${returnTo}${separator}error=${encodeURIComponent(message)}`);
+  };
+
+  const csvData = String(formData.get("csvData") ?? "").trim();
+  if (!csvData) {
+    errorRedirect("Debes proporcionar un CSV para importar");
+  }
+
+  const supabase = createClient();
+  const { rows, missingHeaders } = parseEmployeesCsv(csvData);
+
+  if (missingHeaders.length > 0) {
+    errorRedirect(`Faltan columnas requeridas: ${missingHeaders.join(", ")}`);
+  }
+
+  if (rows.length === 0) {
+    errorRedirect("No se encontraron filas en el CSV");
+  }
+
+  const { data: businessUnits, error: businessUnitsError } = await supabase
+    .from("business_units")
+    .select("id,name");
+
+  if (businessUnitsError) {
+    errorRedirect(businessUnitsError.message);
+  }
+
+  const { data: areas, error: areasError } = await supabase
+    .from("areas")
+    .select("id,name,business_unit_id");
+
+  if (areasError) {
+    errorRedirect(areasError.message);
+  }
+
+  const { data: employees, error: employeesError } = await supabase
+    .from("employees")
+    .select("id,full_name,business_unit_id,identification_number");
+
+  if (employeesError) {
+    errorRedirect(employeesError.message);
+  }
+
+  const businessUnitsByName = new Map(
+    (businessUnits ?? []).map((item) => [item.name.trim().toLowerCase(), item.id])
+  );
+  const areasByKey = new Map(
+    (areas ?? []).map((item) => [
+      `${item.business_unit_id}::${item.name.trim().toLowerCase()}`,
+      item.id,
+    ])
+  );
+
+  const employeesByIdentity = new Map<string, { id: string }>();
+  const employeesByNameAndUnit = new Map<string, { id: string }>();
+
+  for (const employee of employees ?? []) {
+    if (employee.identification_number) {
+      employeesByIdentity.set(normalizeIdentity(employee.identification_number), {
+        id: employee.id,
+      });
+    }
+
+    const key = `${normalizeNameKey(employee.full_name)}::${employee.business_unit_id}`;
+    employeesByNameAndUnit.set(key, { id: employee.id });
+  }
+
+  let created = 0;
+  let updated = 0;
+  let skipped = 0;
+  const rowErrors: string[] = [];
+
+  for (const row of rows) {
+    const errors: string[] = [];
+
+    if (!row.fullName) errors.push("full_name requerido");
+    if (!row.businessUnitName) errors.push("business_unit_name requerido");
+    if (!row.position) errors.push("position requerido");
+    if (!row.contractType) errors.push("contract_type requerido");
+    if (!row.status) errors.push("status requerido");
+
+    if (row.contractType && row.contractType !== "SIPE" && row.contractType !== "SP") {
+      errors.push("contract_type invalido (usa SIPE o SP)");
+    }
+
+    if (row.status && row.status !== "activo" && row.status !== "inactivo") {
+      errors.push("status invalido (usa activo o inactivo)");
+    }
+
+    const businessUnitId = businessUnitsByName.get(row.businessUnitName.toLowerCase());
+    if (!businessUnitId) {
+      errors.push("unidad no existe");
+    }
+
+    let areaId: string | null = null;
+    if (row.areaName && businessUnitId) {
+      const key = `${businessUnitId}::${row.areaName.toLowerCase()}`;
+      areaId = areasByKey.get(key) ?? null;
+      if (!areaId) {
+        errors.push("area no existe en la unidad");
+      }
+    }
+
+    let salary: number | null = null;
+    if (row.salaryRaw) {
+      salary = Number(row.salaryRaw);
+      if (Number.isNaN(salary)) {
+        errors.push("salary invalido");
+      }
+    }
+
+    if (errors.length > 0 || !businessUnitId) {
+      skipped += 1;
+      rowErrors.push(`Fila ${row.rowNumber}: ${errors.join(", ")}`);
+      continue;
+    }
+
+    const normalizedIdentity = row.identificationNumber
+      ? normalizeIdentity(row.identificationNumber)
+      : "";
+    const normalizedNameKey = `${normalizeNameKey(row.fullName)}::${businessUnitId}`;
+
+    let existingEmployeeId = "";
+    if (normalizedIdentity) {
+      existingEmployeeId = employeesByIdentity.get(normalizedIdentity)?.id ?? "";
+    }
+    if (!existingEmployeeId) {
+      existingEmployeeId = employeesByNameAndUnit.get(normalizedNameKey)?.id ?? "";
+    }
+
+    if (existingEmployeeId) {
+      const { error } = await supabase
+        .from("employees")
+        .update({
+          full_name: row.fullName,
+          business_unit_id: businessUnitId,
+          area_id: areaId,
+          position: row.position,
+          contract_type: row.contractType,
+          status: row.status,
+          identification_number: row.identificationNumber || null,
+          salary,
+        })
+        .eq("id", existingEmployeeId);
+
+      if (error) {
+        skipped += 1;
+        rowErrors.push(`Fila ${row.rowNumber}: ${error.message}`);
+        continue;
+      }
+
+      updated += 1;
+      continue;
+    }
+
+    const { data: inserted, error } = await supabase
+      .from("employees")
+      .insert({
+        full_name: row.fullName,
+        business_unit_id: businessUnitId,
+        area_id: areaId,
+        position: row.position,
+        contract_type: row.contractType,
+        status: row.status,
+        identification_number: row.identificationNumber || null,
+        salary,
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      skipped += 1;
+      rowErrors.push(`Fila ${row.rowNumber}: ${error?.message ?? "No se pudo insertar"}`);
+      continue;
+    }
+
+    created += 1;
+
+    if (normalizedIdentity) {
+      employeesByIdentity.set(normalizedIdentity, { id: inserted.id });
+    }
+    employeesByNameAndUnit.set(normalizedNameKey, { id: inserted.id });
+  }
+
+  const report = {
+    totalRows: rows.length,
+    created,
+    updated,
+    skipped,
+    errors: rowErrors.slice(0, 30),
+  };
+
+  const reportToken = Buffer.from(JSON.stringify(report), "utf8").toString("base64url");
+
+  revalidatePath(returnBasePath);
+  const separator = returnTo.includes("?") ? "&" : "?";
+  redirect(
+    `${returnTo}${separator}message=${encodeURIComponent(
+      `Importacion finalizada. Creados: ${created}, actualizados: ${updated}, omitidos: ${skipped}`
+    )}&importReport=${reportToken}`
+  );
+}
+
 export async function createTipRecord(formData: FormData) {
   const profile = await bootstrapProfile();
   const supabase = createClient();
