@@ -34,6 +34,27 @@ async function validateAreaBelongsToBusinessUnit(
   }
 }
 
+async function validateEmployeeBelongsToBusinessUnit(
+  supabase: ReturnType<typeof createClient>,
+  employeeId: string,
+  businessUnitId: string,
+  errorMessage: string
+) {
+  const { data: employee, error } = await supabase
+    .from("employees")
+    .select("id,business_unit_id")
+    .eq("id", employeeId)
+    .maybeSingle();
+
+  if (error || !employee) {
+    redirect(`/app/rrhh?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  if (employee.business_unit_id !== businessUnitId) {
+    redirect(`/app/rrhh?error=${encodeURIComponent(errorMessage)}`);
+  }
+}
+
 export async function createEmployeeRecord(formData: FormData) {
   const supabase = createClient();
 
@@ -100,6 +121,13 @@ export async function createPayrollIncident(formData: FormData) {
     redirect("/app/rrhh?error=Cantidad+de+incidencia+invalida");
   }
 
+  await validateEmployeeBelongsToBusinessUnit(
+    supabase,
+    employeeId,
+    businessUnitId,
+    "El+colaborador+no+pertenece+a+la+unidad+seleccionada+para+incidencias"
+  );
+
   const { error } = await supabase.from("payroll_incidents").insert({
     employee_id: employeeId,
     business_unit_id: businessUnitId,
@@ -138,6 +166,13 @@ export async function createLoanRequest(formData: FormData) {
   if (installmentAmount !== 50 && installmentAmount !== 100) {
     redirect("/app/rrhh?error=La+cuota+debe+ser+50+o+100");
   }
+
+  await validateEmployeeBelongsToBusinessUnit(
+    supabase,
+    employeeId,
+    businessUnitId,
+    "El+colaborador+no+pertenece+a+la+unidad+seleccionada+para+adelantos"
+  );
 
   const installmentsCount = Math.ceil(amount / installmentAmount);
   const paidByFullInstallments = installmentAmount * (installmentsCount - 1);
@@ -234,6 +269,15 @@ export async function createMemo(formData: FormData) {
     redirect("/app/rrhh?error=Completa+los+campos+obligatorios+de+memos");
   }
 
+  if (targetEmployeeId && businessUnitId) {
+    await validateEmployeeBelongsToBusinessUnit(
+      supabase,
+      targetEmployeeId,
+      businessUnitId,
+      "El+colaborador+objetivo+no+pertenece+a+la+unidad+seleccionada+en+memo"
+    );
+  }
+
   const { error } = await supabase.from("memos").insert({
     target_employee_id: targetEmployeeId || null,
     business_unit_id: businessUnitId || null,
@@ -278,6 +322,13 @@ export async function createVacationRequest(formData: FormData) {
   if (Number.isNaN(totalDays) || totalDays <= 0) {
     redirect("/app/rrhh?error=Total+de+dias+invalido+para+vacaciones");
   }
+
+  await validateEmployeeBelongsToBusinessUnit(
+    supabase,
+    employeeId,
+    businessUnitId,
+    "El+colaborador+no+pertenece+a+la+unidad+seleccionada+para+vacaciones"
+  );
 
   const { error } = await supabase.from("vacation_requests").insert({
     employee_id: employeeId,

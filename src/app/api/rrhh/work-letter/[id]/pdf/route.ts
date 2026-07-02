@@ -4,6 +4,9 @@ import { renderWorkLetterPdf } from "@/lib/pdf/rrhh";
 
 type Params = { params: { id: string } };
 
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
 export async function GET(_request: Request, { params }: Params) {
   const supabase = createClient();
 

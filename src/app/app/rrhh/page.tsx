@@ -33,9 +33,25 @@ export default async function RrhhPage({
   await requireModuleAccess("rrhh");
   const supabase = createClient();
 
+  const now = new Date();
+  const defaultMonth = now.getMonth() + 1;
+  const defaultYear = now.getFullYear();
+
+  const parseMonth = (value?: string) => {
+    const parsed = Number(value ?? defaultMonth);
+    if (!Number.isInteger(parsed) || parsed < 1 || parsed > 12) return defaultMonth;
+    return parsed;
+  };
+
+  const parseYear = (value?: string) => {
+    const parsed = Number(value ?? defaultYear);
+    if (!Number.isInteger(parsed) || parsed < 2020 || parsed > 2100) return defaultYear;
+    return parsed;
+  };
+
   const selectedBu = searchParams?.bu ?? "";
-  const selectedMonth = Number(searchParams?.month ?? `${new Date().getMonth() + 1}`);
-  const selectedYear = Number(searchParams?.year ?? `${new Date().getFullYear()}`);
+  const selectedMonth = parseMonth(searchParams?.month);
+  const selectedYear = parseYear(searchParams?.year);
   const selectedStatus = searchParams?.status ?? "";
   const selectedQuery = searchParams?.q ?? "";
   const selectedMenu =
@@ -54,78 +70,183 @@ export default async function RrhhPage({
     return `/app/rrhh?${params.toString()}`;
   };
 
-  const { data: businessUnits } = await supabase
+  const { data: businessUnitsData } = await supabase
     .from("business_units")
     .select("id,name")
     .order("name", { ascending: true });
 
-  const { data: areas } = await supabase
+  const { data: areasData } = await supabase
     .from("areas")
     .select("id,name,business_unit_id")
     .order("name", { ascending: true });
 
-  let employeesQuery = supabase
-    .from("employees")
-    .select("id,full_name,business_unit_id,area_id,position,contract_type,status,identification_number,salary")
-    .order("full_name", { ascending: true });
+  const businessUnits = businessUnitsData ?? [];
+  const areas = areasData ?? [];
 
-  if (selectedBu) employeesQuery = employeesQuery.eq("business_unit_id", selectedBu);
-  if (selectedMenu === "personal") {
-    if (selectedStatus) employeesQuery = employeesQuery.eq("status", selectedStatus);
-    if (selectedQuery) employeesQuery = employeesQuery.ilike("full_name", `%${selectedQuery}%`);
+  let employees: Array<{
+    id: string;
+    full_name: string;
+    business_unit_id: string;
+    area_id: string | null;
+    position: string;
+    contract_type: string;
+    status: string;
+    identification_number: string | null;
+    salary: number | null;
+  }> = [];
+
+  if (selectedMenu === "personal" || selectedMenu === "incidencias" || selectedMenu === "solicitudes") {
+    let employeesQuery = supabase
+      .from("employees")
+      .select("id,full_name,business_unit_id,area_id,position,contract_type,status,identification_number,salary")
+      .order("full_name", { ascending: true });
+
+    if (selectedBu) employeesQuery = employeesQuery.eq("business_unit_id", selectedBu);
+    if (selectedMenu === "personal") {
+      if (selectedStatus) employeesQuery = employeesQuery.eq("status", selectedStatus);
+      if (selectedQuery) employeesQuery = employeesQuery.ilike("full_name", `%${selectedQuery}%`);
+    }
+
+    const { data } = await employeesQuery;
+    employees = data ?? [];
   }
 
-  const { data: employees } = await employeesQuery;
+  let incidentTypes: Array<{ id: string; name: string; is_active: boolean }> = [];
+  let incidents: Array<{
+    id: string;
+    employee_id: string;
+    business_unit_id: string;
+    pay_period: string;
+    month: number;
+    year: number;
+    incident_type: string;
+    quantity: number | null;
+    notes: string | null;
+    created_at: string;
+  }> = [];
 
-  const { data: incidentTypes } = await supabase
-    .from("incident_types")
-    .select("id,name,is_active")
-    .eq("is_active", true)
-    .order("name", { ascending: true });
+  if (selectedMenu === "incidencias") {
+    const { data: incidentTypesData } = await supabase
+      .from("incident_types")
+      .select("id,name,is_active")
+      .eq("is_active", true)
+      .order("name", { ascending: true });
 
-  let incidentsQuery = supabase
-    .from("payroll_incidents")
-    .select("id,employee_id,business_unit_id,pay_period,month,year,incident_type,quantity,notes,created_at")
-    .eq("month", selectedMonth)
-    .eq("year", selectedYear)
-    .order("created_at", { ascending: false });
+    incidentTypes = incidentTypesData ?? [];
 
-  let loansQuery = supabase
-    .from("loan_requests")
-    .select("id,employee_id,business_unit_id,amount,installment_amount,installments_count,last_installment_amount,reason,request_date,approved_amount,status,created_at")
-    .order("created_at", { ascending: false });
+    let incidentsQuery = supabase
+      .from("payroll_incidents")
+      .select("id,employee_id,business_unit_id,pay_period,month,year,incident_type,quantity,notes,created_at")
+      .eq("month", selectedMonth)
+      .eq("year", selectedYear)
+      .order("created_at", { ascending: false });
 
-  let workLettersQuery = supabase
-    .from("work_letters")
-    .select("id,employee_id,business_unit_id,purpose,request_date,contract_type,hire_date_text,salary,weekly_tip_avg,identification,status,created_at")
-    .order("created_at", { ascending: false });
+    if (selectedBu) {
+      incidentsQuery = incidentsQuery.eq("business_unit_id", selectedBu);
+    }
 
-  let memosQuery = supabase
-    .from("memos")
-    .select("id,target_employee_id,business_unit_id,memo_type,subject,body,date,status,created_at")
-    .order("created_at", { ascending: false });
-
-  let vacationsQuery = supabase
-    .from("vacation_requests")
-    .select("id,employee_id,business_unit_id,start_date,end_date,total_days,reason,status,created_at")
-    .order("created_at", { ascending: false });
-
-  if (selectedBu) {
-    incidentsQuery = incidentsQuery.eq("business_unit_id", selectedBu);
-    loansQuery = loansQuery.eq("business_unit_id", selectedBu);
-    workLettersQuery = workLettersQuery.eq("business_unit_id", selectedBu);
-    memosQuery = memosQuery.eq("business_unit_id", selectedBu);
-    vacationsQuery = vacationsQuery.eq("business_unit_id", selectedBu);
+    const { data: incidentsData } = await incidentsQuery.limit(100);
+    incidents = incidentsData ?? [];
   }
 
-  const { data: incidents } = await incidentsQuery.limit(100);
-  const { data: loanRequests } = await loansQuery.limit(100);
-  const { data: workLetters } = await workLettersQuery.limit(100);
-  const { data: memos } = await memosQuery.limit(100);
-  const { data: vacationRequests } = await vacationsQuery.limit(100);
+  let loanRequests: Array<{
+    id: string;
+    employee_id: string;
+    business_unit_id: string;
+    amount: number;
+    installment_amount: number;
+    installments_count: number;
+    last_installment_amount: number | null;
+    reason: string | null;
+    request_date: string;
+    approved_amount: number | null;
+    status: string;
+    created_at: string;
+  }> = [];
+
+  let workLetters: Array<{
+    id: string;
+    employee_id: string;
+    business_unit_id: string;
+    purpose: string | null;
+    request_date: string;
+    contract_type: string;
+    hire_date_text: string | null;
+    salary: number | null;
+    weekly_tip_avg: number | null;
+    identification: string | null;
+    status: string;
+    created_at: string;
+  }> = [];
+
+  let memos: Array<{
+    id: string;
+    target_employee_id: string | null;
+    business_unit_id: string | null;
+    memo_type: string;
+    subject: string;
+    body: string;
+    date: string;
+    status: string | null;
+    created_at: string;
+  }> = [];
+
+  let vacationRequests: Array<{
+    id: string;
+    employee_id: string;
+    business_unit_id: string;
+    start_date: string;
+    end_date: string;
+    total_days: number;
+    reason: string | null;
+    status: string;
+    created_at: string;
+  }> = [];
+
+  if (selectedMenu === "solicitudes") {
+    let loansQuery = supabase
+      .from("loan_requests")
+      .select("id,employee_id,business_unit_id,amount,installment_amount,installments_count,last_installment_amount,reason,request_date,approved_amount,status,created_at")
+      .order("created_at", { ascending: false });
+
+    let workLettersQuery = supabase
+      .from("work_letters")
+      .select("id,employee_id,business_unit_id,purpose,request_date,contract_type,hire_date_text,salary,weekly_tip_avg,identification,status,created_at")
+      .order("created_at", { ascending: false });
+
+    let memosQuery = supabase
+      .from("memos")
+      .select("id,target_employee_id,business_unit_id,memo_type,subject,body,date,status,created_at")
+      .order("created_at", { ascending: false });
+
+    let vacationsQuery = supabase
+      .from("vacation_requests")
+      .select("id,employee_id,business_unit_id,start_date,end_date,total_days,reason,status,created_at")
+      .order("created_at", { ascending: false });
+
+    if (selectedBu) {
+      loansQuery = loansQuery.eq("business_unit_id", selectedBu);
+      workLettersQuery = workLettersQuery.eq("business_unit_id", selectedBu);
+      memosQuery = memosQuery.eq("business_unit_id", selectedBu);
+      vacationsQuery = vacationsQuery.eq("business_unit_id", selectedBu);
+    }
+
+    const [{ data: loansData }, { data: workLettersData }, { data: memosData }, { data: vacationsData }] = await Promise.all([
+      loansQuery.limit(100),
+      workLettersQuery.limit(100),
+      memosQuery.limit(100),
+      vacationsQuery.limit(100),
+    ]);
+
+    loanRequests = loansData ?? [];
+    workLetters = workLettersData ?? [];
+    memos = memosData ?? [];
+    vacationRequests = vacationsData ?? [];
+  }
 
   const employeeById = new Map((employees ?? []).map((employee) => [employee.id, employee.full_name]));
   const businessUnitById = new Map((businessUnits ?? []).map((unit) => [unit.id, unit.name]));
+  const areasForSelectedBu = selectedBu ? areas.filter((area) => area.business_unit_id === selectedBu) : [];
 
   const totalApprovedLoans = (loanRequests ?? [])
     .filter((loan) => loan.status === "aprobado")
@@ -133,6 +254,10 @@ export default async function RrhhPage({
 
   const totalIncidents = (incidents ?? []).length;
   const pendingLetters = (workLetters ?? []).filter((letter) => letter.status !== "entregada").length;
+  const activeEmployees = (employees ?? []).filter((employee) => employee.status === "activo").length;
+  const inactiveEmployees = (employees ?? []).filter((employee) => employee.status === "inactivo").length;
+  const pendingVacations = (vacationRequests ?? []).filter((vacation) => vacation.status === "pendiente").length;
+  const uniqueIncidentTypesCount = new Set((incidents ?? []).map((incident) => incident.incident_type)).size;
 
   const years = Array.from({ length: 5 }, (_, index) => new Date().getFullYear() - index);
   const monthOptions = [
@@ -273,14 +398,6 @@ export default async function RrhhPage({
             </>
           ) : null}
 
-          {selectedMenu === "solicitudes" ? (
-            <input type="hidden" name="month" value={selectedMonth} />
-          ) : null}
-
-          {selectedMenu === "solicitudes" ? (
-            <input type="hidden" name="year" value={selectedYear} />
-          ) : null}
-
           <button type="submit" className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50">Aplicar</button>
         </FilterBar>
       </SectionCard>
@@ -288,18 +405,56 @@ export default async function RrhhPage({
 
       {selectedMenu !== "principal" ? (
       <section className="mb-8 grid gap-3 md:grid-cols-3">
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Incidencias del periodo</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{totalIncidents}</p>
-        </article>
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Adelantos aprobados</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">${totalApprovedLoans.toFixed(2)}</p>
-        </article>
-        <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
-          <p className="text-xs uppercase tracking-wide text-slate-500">Cartas pendientes</p>
-          <p className="mt-1 text-2xl font-bold text-slate-900">{pendingLetters}</p>
-        </article>
+        {selectedMenu === "personal" ? (
+          <>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Colaboradores visibles</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{employees.length}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Activos</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{activeEmployees}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Inactivos</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{inactiveEmployees}</p>
+            </article>
+          </>
+        ) : null}
+
+        {selectedMenu === "incidencias" ? (
+          <>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Incidencias del periodo</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{totalIncidents}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Con cantidad registrada</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{(incidents ?? []).filter((incident) => incident.quantity !== null).length}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Tipos usados</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{uniqueIncidentTypesCount}</p>
+            </article>
+          </>
+        ) : null}
+
+        {selectedMenu === "solicitudes" ? (
+          <>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Adelantos aprobados</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">${totalApprovedLoans.toFixed(2)}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Cartas pendientes</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{pendingLetters}</p>
+            </article>
+            <article className="card-surface rise-in rounded-2xl border p-4 shadow-sm">
+              <p className="text-xs uppercase tracking-wide text-slate-500">Vacaciones pendientes</p>
+              <p className="mt-1 text-2xl font-bold text-slate-900">{pendingVacations}</p>
+            </article>
+          </>
+        ) : null}
       </section>
       ) : null}
 
@@ -320,12 +475,15 @@ export default async function RrhhPage({
               <option key={unit.id} value={unit.id}>{unit.name}</option>
             ))}
           </select>
-          <select name="areaId" className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
+          <select name="areaId" disabled={!selectedBu} className="rounded-lg border border-slate-300 px-3 py-2 text-sm disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-500">
             <option value="">Area (opcional)</option>
-            {(areas ?? []).map((area) => (
+            {areasForSelectedBu.map((area) => (
               <option key={area.id} value={area.id}>{area.name}</option>
             ))}
           </select>
+          {!selectedBu ? (
+            <p className="text-xs text-amber-700 md:col-span-2">Selecciona una unidad en el filtro superior para habilitar areas correctas.</p>
+          ) : null}
           <select name="contractType" required className="rounded-lg border border-slate-300 px-3 py-2 text-sm">
             <option value="SIPE">SIPE</option>
             <option value="SP">SP</option>
@@ -463,6 +621,11 @@ export default async function RrhhPage({
                   <td className="px-2 py-2">{incident.quantity ?? "-"}</td>
                 </tr>
               ))}
+              {(incidents ?? []).length === 0 ? (
+                <tr>
+                  <td className="px-2 py-3 text-slate-500" colSpan={5}>No hay incidencias para el filtro seleccionado.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -612,6 +775,11 @@ export default async function RrhhPage({
                   </td>
                 </tr>
               ))}
+              {(loanRequests ?? []).length === 0 ? (
+                <tr>
+                  <td className="px-2 py-3 text-slate-500" colSpan={8}>No hay adelantos para el filtro seleccionado.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -645,6 +813,11 @@ export default async function RrhhPage({
                   </td>
                 </tr>
               ))}
+              {(workLetters ?? []).length === 0 ? (
+                <tr>
+                  <td className="px-2 py-3 text-slate-500" colSpan={6}>No hay cartas de trabajo para el filtro seleccionado.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -661,6 +834,7 @@ export default async function RrhhPage({
                 <th className="px-2 py-2 font-medium">Colaborador objetivo</th>
                 <th className="px-2 py-2 font-medium">Unidad</th>
                 <th className="px-2 py-2 font-medium">Estado</th>
+                <th className="px-2 py-2 font-medium">PDF</th>
               </tr>
             </thead>
             <tbody>
@@ -672,8 +846,18 @@ export default async function RrhhPage({
                   <td className="px-2 py-2">{memo.target_employee_id ? employeeById.get(memo.target_employee_id) ?? "-" : "Todo el personal"}</td>
                   <td className="px-2 py-2">{memo.business_unit_id ? businessUnitById.get(memo.business_unit_id) ?? "-" : "Todas"}</td>
                   <td className="px-2 py-2">{memo.status ?? "-"}</td>
+                  <td className="px-2 py-2">
+                    <a href={`/api/rrhh/memo/${memo.id}/pdf`} target="_blank" className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                      Ver PDF
+                    </a>
+                  </td>
                 </tr>
               ))}
+              {(memos ?? []).length === 0 ? (
+                <tr>
+                  <td className="px-2 py-3 text-slate-500" colSpan={7}>No hay memos para el filtro seleccionado.</td>
+                </tr>
+              ) : null}
             </tbody>
           </table>
         </div>
@@ -691,6 +875,7 @@ export default async function RrhhPage({
                 <th className="px-2 py-2 font-medium">Dias</th>
                 <th className="px-2 py-2 font-medium">Motivo</th>
                 <th className="px-2 py-2 font-medium">Estado</th>
+                <th className="px-2 py-2 font-medium">PDF</th>
               </tr>
             </thead>
             <tbody>
@@ -703,11 +888,16 @@ export default async function RrhhPage({
                   <td className="px-2 py-2">{vacation.total_days}</td>
                   <td className="px-2 py-2">{vacation.reason ?? "-"}</td>
                   <td className="px-2 py-2">{vacation.status}</td>
+                  <td className="px-2 py-2">
+                    <a href={`/api/rrhh/vacation-request/${vacation.id}/pdf`} target="_blank" className="rounded-md border border-slate-300 px-2 py-1 text-xs font-medium text-slate-700 hover:bg-slate-50">
+                      Ver PDF
+                    </a>
+                  </td>
                 </tr>
               ))}
               {(vacationRequests ?? []).length === 0 ? (
                 <tr>
-                  <td className="px-2 py-3 text-slate-500" colSpan={7}>No hay solicitudes de vacaciones registradas.</td>
+                  <td className="px-2 py-3 text-slate-500" colSpan={8}>No hay solicitudes de vacaciones registradas.</td>
                 </tr>
               ) : null}
             </tbody>
